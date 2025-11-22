@@ -199,20 +199,22 @@ function displayFranchises(minMembers = 0) {
             createFranchiseMarker(franchise);
         } else {
             // 좌표가 없으면 Geocoding 시도
+            // 인증이 완료된 후에만 Geocoding 시도
             if (naver && naver.maps && naver.maps.Service && naver.maps.Service.geocode) {
+                // Geocoding 시도 (인증 실패 시 콜백이 호출되지 않음)
                 geocodeAddress(franchise.address, (lat, lng) => {
                     if (lat && lng) {
                         franchise.lat = lat;
                         franchise.lng = lng;
                         createFranchiseMarker(franchise);
-                    } else {
-                        console.warn('Geocoding 실패로 마커를 표시할 수 없습니다:', franchise.name);
                     }
+                }, () => {
+                    // Geocoding 실패 시 (인증 실패 포함)
+                    console.warn('Geocoding 실패:', franchise.name);
                 });
             } else {
-                // Geocoding을 사용할 수 없으면 주소만 표시 (마커 없음)
-                console.warn('좌표가 없고 Geocoding을 사용할 수 없습니다:', franchise.name);
-                // 나중에 좌표를 추가할 수 있도록 data.js에 직접 추가하도록 안내
+                // Geocoding Service가 없으면 인증 실패 가능성
+                console.warn('좌표가 없고 Geocoding Service를 사용할 수 없습니다:', franchise.name);
             }
         }
     });
@@ -402,10 +404,11 @@ function createAcademyAreaMarker(area) {
 }
 
 // 주소를 좌표로 변환 (Geocoding)
-function geocodeAddress(address, callback) {
+function geocodeAddress(address, callback, errorCallback) {
     // 네이버 지도 API가 로드되지 않은 경우
     if (!naver || !naver.maps) {
         console.error('네이버 지도 API가 로드되지 않았습니다.');
+        if (errorCallback) errorCallback();
         return;
     }
     
@@ -417,14 +420,23 @@ function geocodeAddress(address, callback) {
             if (status === naver.maps.Service.Status.ERROR) {
                 console.error('Geocoding 실패:', address, status);
                 // 인증 실패인 경우
-                if (status === 'Authentication Failed' || status === 'AUTHENTICATION_FAILED') {
+                if (status === 'Authentication Failed' || status === 'AUTHENTICATION_FAILED' || 
+                    (response && response.error && response.error.includes('인증'))) {
                     console.error('Geocoding 인증 실패 - Web 서비스 URL을 확인해주세요');
                 }
+                if (errorCallback) errorCallback();
                 return;
             }
 
             if (response.v2 && response.v2.meta && response.v2.meta.totalCount === 0) {
                 console.error('주소를 찾을 수 없습니다:', address);
+                if (errorCallback) errorCallback();
+                return;
+            }
+
+            if (!response.v2 || !response.v2.addresses || response.v2.addresses.length === 0) {
+                console.error('Geocoding 응답 형식 오류:', response);
+                if (errorCallback) errorCallback();
                 return;
             }
 
@@ -432,15 +444,17 @@ function geocodeAddress(address, callback) {
             const lat = parseFloat(item.y);
             const lng = parseFloat(item.x);
             
-            callback(lat, lng);
+            if (lat && lng) {
+                callback(lat, lng);
+            } else {
+                console.error('좌표 파싱 실패:', address);
+                if (errorCallback) errorCallback();
+            }
         });
     } else {
-        // Service가 없는 경우 (신규 API), 네이버 Geocoding API 직접 호출 시도
-        // 하지만 CORS 문제로 브라우저에서 직접 호출 불가
-        // 일단 주소만 표시하고 좌표는 나중에 수동으로 추가하도록 안내
-        console.warn('Geocoding Service를 사용할 수 없습니다. 주소만 표시합니다:', address);
-        // 좌표가 없으면 마커를 표시하지 않음
-        // 사용자가 나중에 좌표를 추가할 수 있도록 안내
+        // Service가 없는 경우 (신규 API 또는 인증 실패)
+        console.warn('Geocoding Service를 사용할 수 없습니다:', address);
+        if (errorCallback) errorCallback();
     }
 }
 
