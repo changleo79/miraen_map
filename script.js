@@ -53,16 +53,31 @@ function initMap() {
                         mapContent.includes('인증이 실패')) {
                         console.error('지도 타일 로드 후 인증 실패 감지');
                         authFailed = true;
+                        const currentUrl = window.location.origin;
                         showMapError('네이버 지도 API 인증이 실패했습니다.<br><br>' +
+                            '<strong>현재 도메인:</strong> <code>' + currentUrl + '</code><br><br>' +
                             '<strong>확인 사항:</strong><br>' +
-                            '1. Web 서비스 URL이 정확히 <code>http://localhost:8000</code> (마지막 슬래시 없음)인지 확인<br>' +
-                            '2. Application을 저장했는지 확인<br>' +
-                            '3. 저장 후 10분 이상 기다린 후 다시 시도<br>' +
-                            '4. 브라우저를 완전히 종료한 후 다시 시도');
+                            '1. 네이버 클라우드 플랫폼 → VPC → Maps → Application<br>' +
+                            '2. Web 서비스 URL에 <code>' + currentUrl + '</code> 정확히 등록 (마지막 슬래시 없음)<br>' +
+                            '3. "✓ 저장" 버튼 클릭 완료<br>' +
+                            '4. 저장 후 10-15분 대기 후 새로고침<br>' +
+                            '5. 브라우저를 완전히 종료한 후 다시 시도');
                     } else {
                         console.log('✅ 지도 정상 로드 확인');
                     }
                 }
+            }
+        });
+        
+        // 지도 에러 이벤트 리스너 추가
+        naver.maps.Event.addListener(map, 'error', (error) => {
+            console.error('지도 에러 발생:', error);
+            if (!authFailed) {
+                authFailed = true;
+                const currentUrl = window.location.origin;
+                showMapError('지도 로드 중 오류가 발생했습니다.<br><br>' +
+                    '<strong>현재 도메인:</strong> <code>' + currentUrl + '</code><br><br>' +
+                    '네이버 클라우드 플랫폼에서 Web 서비스 URL을 확인해주세요.');
             }
         });
 
@@ -186,9 +201,13 @@ function displayFranchises(minMembers = 0) {
             // 좌표가 없으면 Geocoding 시도
             if (naver && naver.maps && naver.maps.Service && naver.maps.Service.geocode) {
                 geocodeAddress(franchise.address, (lat, lng) => {
-                    franchise.lat = lat;
-                    franchise.lng = lng;
-                    createFranchiseMarker(franchise);
+                    if (lat && lng) {
+                        franchise.lat = lat;
+                        franchise.lng = lng;
+                        createFranchiseMarker(franchise);
+                    } else {
+                        console.warn('Geocoding 실패로 마커를 표시할 수 없습니다:', franchise.name);
+                    }
                 });
             } else {
                 // Geocoding을 사용할 수 없으면 주소만 표시 (마커 없음)
@@ -396,7 +415,11 @@ function geocodeAddress(address, callback) {
             query: address
         }, function(status, response) {
             if (status === naver.maps.Service.Status.ERROR) {
-                console.error('Geocoding 실패:', address);
+                console.error('Geocoding 실패:', address, status);
+                // 인증 실패인 경우
+                if (status === 'Authentication Failed' || status === 'AUTHENTICATION_FAILED') {
+                    console.error('Geocoding 인증 실패 - Web 서비스 URL을 확인해주세요');
+                }
                 return;
             }
 
