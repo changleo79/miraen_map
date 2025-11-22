@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>엑셀 데이터 업로드 - 미래엔수학 가맹점 지도</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Malgun Gothic', '맑은 고딕', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-section {
+            border: 3px dashed #667eea;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            background: #f8f9ff;
+            transition: all 0.3s;
+        }
+
+        .upload-section:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-section.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .format-guide {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 30px 0;
+            border-radius: 5px;
+        }
+
+        .format-guide h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .format-guide table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        .format-guide th,
+        .format-guide td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        .format-guide th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        .format-guide tr:hover {
+            background: #f0f0f0;
+        }
+
+        .preview-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .preview-section.active {
+            display: block;
+        }
+
+        .preview-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: block;
+        }
+
+        .preview-table thead {
+            position: sticky;
+            top: 0;
+            background: white;
+        }
+
+        .preview-table th,
+        .preview-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            font-size: 14px;
+        }
+
+        .preview-table th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+
+        .preview-table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result-section.active {
+            display: block;
+        }
+
+        .result-section.error {
+            background: #f8d7da;
+            border-color: #f5c6cb;
+        }
+
+        .download-btn {
+            margin-top: 15px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: bold;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 엑셀 데이터 업로드</h1>
+        <p class="subtitle">엑셀 파일을 업로드하여 data.js 파일을 자동 생성합니다</p>
+
+        <div class="format-guide">
+            <h3>📋 엑셀 파일 형식</h3>
+            <p style="margin-bottom: 15px;">엑셀 파일에는 다음 시트가 있어야 합니다:</p>
+            <p style="margin-bottom: 15px; padding: 10px; background: #e7f3ff; border-left: 4px solid #2196F3; color: #1976D2;">
+                <strong>💡 참고:</strong> 초등학교는 네이버 지도에서 자동으로 검색되어 표시되므로 엑셀에 입력할 필요가 없습니다.
+            </p>
+            
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('franchise')">가맹점</button>
+                <button class="tab" onclick="showTab('academy')">학원상권</button>
+            </div>
+
+            <div id="franchise-tab" class="tab-content active">
+                <p><strong>시트명: "가맹점" 또는 "franchise"</strong></p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>지역</th>
+                            <th>상호</th>
+                            <th>주소</th>
+                            <th>원장명</th>
+                            <th>회원수</th>
+                            <th>전화번호</th>
+                            <th>우편번호</th>
+                            <th>계약일</th>
+                            <th>네이버플레이스ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>yongin</td>
+                            <td>미래엔수학 용인점</td>
+                            <td>경기도 용인시...</td>
+                            <td>홍길동</td>
+                            <td>150</td>
+                            <td>010-1234-5678</td>
+                            <td>12345</td>
+                            <td>2024-01-15</td>
+                            <td>12345678</td>
+                        </tr>
+                        <tr>
+                            <td>gangdong</td>
+                            <td>미래엔수학 강동점</td>
+                            <td>서울시 강동구...</td>
+                            <td>김철수</td>
+                            <td>200</td>
+                            <td>010-9876-5432</td>
+                            <td>54321</td>
+                            <td>2024-02-20</td>
+                            <td>87654321</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <strong>지역:</strong> "yongin" 또는 "gangdong" 입력<br>
+                    <strong>회원수:</strong> 숫자만 입력<br>
+                    <strong>전화번호:</strong> 010-1234-5678 형식 (선택사항)<br>
+                    <strong>우편번호:</strong> 5자리 숫자 (선택사항, 주소 정확도에는 영향 없음)<br>
+                    <strong>계약일:</strong> YYYY-MM-DD 또는 YYYYMMDD 형식 (선택사항)<br>
+                    <strong>네이버플레이스ID:</strong> 네이버 플레이스 페이지의 ID (선택사항, 없으면 자동으로 검색 링크 생성)
+                </p>
+            </div>
+
+            <div id="academy-tab" class="tab-content">
+                <p><strong>시트명: "학원상권" 또는 "academy"</strong></p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>지역</th>
+                            <th>학원상권명</th>
+                            <th>주소</th>
+                            <th>반경(미터)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>yongin</td>
+                            <td>용인 학원가</td>
+                            <td>경기도 용인시...</td>
+                            <td>500</td>
+                        </tr>
+                        <tr>
+                            <td>gangdong</td>
+                            <td>강동 학원가</td>
+                            <td>서울시 강동구...</td>
+                            <td>800</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <strong>반경:</strong> 미터 단위 숫자 (기본값: 500)
+                </p>
+            </div>
+        </div>
+
+        <div class="upload-section" id="uploadArea">
+            <div class="upload-icon">📁</div>
+            <div class="upload-text">엑셀 파일을 드래그하거나 클릭하여 업로드</div>
+            <div class="upload-hint">.xlsx, .xls 파일만 지원됩니다</div>
+            <input type="file" id="fileInput" accept=".xlsx,.xls" />
+            <button class="btn" onclick="document.getElementById('fileInput').click()">파일 선택</button>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>데이터를 처리하는 중...</p>
+        </div>
+
+        <div class="preview-section" id="previewSection">
+            <h3>미리보기</h3>
+            <div id="previewContent"></div>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <h3 id="resultTitle"></h3>
+            <p id="resultMessage"></p>
+            <button class="btn download-btn" id="downloadBtn" onclick="downloadDataJs()">data.js 다운로드</button>
+        </div>
+    </div>
+
+    <script>
+        let convertedData = null;
+
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        // 드래그 앤 드롭
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file.name.match(/\.(xlsx|xls)$/)) {
+                showResult('error', '오류', '엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.');
+                return;
+            }
+
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('previewSection').classList.remove('active');
+            document.getElementById('resultSection').classList.remove('active');
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    convertedData = convertExcelToData(workbook);
+                    showPreview(convertedData);
+                    showResult('success', '성공!', '데이터 변환이 완료되었습니다. data.js 파일을 다운로드하세요.');
+                } catch (error) {
+                    showResult('error', '오류', '파일을 읽는 중 오류가 발생했습니다: ' + error.message);
+                } finally {
+                    document.getElementById('loading').classList.remove('active');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function convertExcelToData(workbook) {
+            const result = {
+                franchises: { yongin: [], gangdong: [] },
+                schools: { yongin: [], gangdong: [] },
+                academyAreas: { yongin: [], gangdong: [] }
+            };
+
+            // 시트 찾기
+            let franchiseSheet = workbook.SheetNames.find(name => 
+                name.includes('가맹점') || name.toLowerCase().includes('franchise')
+            );
+            let academySheet = workbook.SheetNames.find(name => 
+                name.includes('학원상권') || name.toLowerCase().includes('academy')
+            );
+            
+            // 시트를 찾지 못하면 첫 번째 시트 사용
+            if (!franchiseSheet && workbook.SheetNames.length > 0) {
+                console.log('가맹점 시트를 찾지 못했습니다. 첫 번째 시트를 사용합니다:', workbook.SheetNames[0]);
+                franchiseSheet = workbook.SheetNames[0];
+            }
+            
+            // 학원상권 시트를 찾지 못했지만 두 번째 시트가 있으면 사용 (선택사항)
+            if (!academySheet && workbook.SheetNames.length > 1) {
+                console.log('학원상권 시트를 찾지 못했습니다. 두 번째 시트를 확인합니다:', workbook.SheetNames[1]);
+                // 두 번째 시트가 학원상권 데이터인지 확인 (선택사항)
+            }
+
+            // 가맹점 데이터 처리
+            if (franchiseSheet) {
+                const sheet = workbook.Sheets[franchiseSheet];
+                const jsonData = XLSX.utils.sheet_to_json(sheet);
+                
+                console.log('엑셀 데이터:', jsonData); // 디버깅
+                console.log('첫 번째 행:', jsonData[0]); // 디버깅
+                
+                jsonData.forEach((row, index) => {
+                    // 모든 키 확인 (디버깅)
+                    if (index === 0) {
+                        console.log('컬럼명:', Object.keys(row));
+                    }
+                    
+                    // 지역 필드 찾기 (다양한 형식 지원)
+                    let region = '';
+                    const regionKeys = ['지역', 'region', 'Region', 'REGION'];
+                    for (const key of regionKeys) {
+                        if (row[key]) {
+                            region = row[key].toString().toLowerCase().trim();
+                            break;
+                        }
+                    }
+                    
+                    // 지역이 없으면 스킵
+                    if (!region || (region !== 'yongin' && region !== 'gangdong')) {
+                        console.log('지역 정보 없음 또는 잘못된 지역:', region, row);
+                        return;
+                    }
+                    
+                    // 필드 매핑 (다양한 컬럼명 지원)
+                    const franchise = {
+                        name: row['상호'] || row['name'] || row['Name'] || row['상호명'] || '',
+                        address: row['주소'] || row['address'] || row['Address'] || row['Address'] || '',
+                        director: row['원장명'] || row['director'] || row['Director'] || row['명'] || row['원장'] || '',
+                        members: parseInt(row['회원수'] || row['members'] || row['Members'] || row['수'] || 0) || 0
+                    };
+                    
+                    // 선택적 필드 추가
+                    if (row['전화번호'] || row['phone'] || row['Phone'] || row['전화']) {
+                        franchise.phone = row['전화번호'] || row['phone'] || row['Phone'] || row['전화'] || '';
+                    }
+                    if (row['우편번호'] || row['zipCode'] || row['zipcode'] || row['ZipCode'] || row['우편'] || row['호']) {
+                        franchise.zipCode = row['우편번호'] || row['zipCode'] || row['zipcode'] || row['ZipCode'] || row['우편'] || row['호'] || '';
+                    }
+                    if (row['계약일'] || row['contractDate'] || row['contractdate'] || row['ContractDate']) {
+                        franchise.contractDate = row['계약일'] || row['contractDate'] || row['contractdate'] || row['ContractDate'] || '';
+                    }
+                    if (row['네이버플레이스ID'] || row['naverPlaceId'] || row['naverplaceid'] || row['NaverPlaceId'] || row['ID']) {
+                        franchise.naverPlaceId = row['네이버플레이스ID'] || row['naverPlaceId'] || row['naverplaceid'] || row['NaverPlaceId'] || row['ID'] || '';
+                    }
+                    
+                    // 필수 필드 확인
+                    if (!franchise.name || !franchise.address) {
+                        console.log('필수 필드 누락:', franchise);
+                        return;
+                    }
+                    
+                    result.franchises[region].push(franchise);
+                });
+                
+                console.log('처리된 가맹점 데이터:', result.franchises); // 디버깅
+            } else {
+                console.error('가맹점 시트를 찾을 수 없습니다. 시트명:', workbook.SheetNames);
+            }
+
+            // 학원상권 데이터 처리
+            if (academySheet) {
+                const sheet = workbook.Sheets[academySheet];
+                const jsonData = XLSX.utils.sheet_to_json(sheet);
+                
+                jsonData.forEach(row => {
+                    const region = (row['지역'] || row['region'] || '').toString().toLowerCase();
+                    if (region === 'yongin' || region === 'gangdong') {
+                        result.academyAreas[region].push({
+                            name: row['학원상권명'] || row['name'] || '',
+                            address: row['주소'] || row['address'] || '',
+                            radius: parseInt(row['반경(미터)'] || row['radius'] || 500) || 500
+                        });
+                    }
+                });
+            }
+
+            return result;
+        }
+
+        function showPreview(data) {
+            const previewContent = document.getElementById('previewContent');
+            let html = '';
+
+            // 가맹점 미리보기
+            const totalFranchises = data.franchises.yongin.length + data.franchises.gangdong.length;
+            if (totalFranchises > 0) {
+                html += `<h4 style="margin-top: 20px; color: #667eea;">가맹점 (총 ${totalFranchises}개)</h4>`;
+                html += `<p>용인지사: ${data.franchises.yongin.length}개 | 강동송파하남지사: ${data.franchises.gangdong.length}개</p>`;
+            }
+
+            // 학원상권 미리보기
+            const totalAcademies = data.academyAreas.yongin.length + data.academyAreas.gangdong.length;
+            if (totalAcademies > 0) {
+                html += `<h4 style="margin-top: 20px; color: #667eea;">학원상권 (총 ${totalAcademies}개)</h4>`;
+                html += `<p>용인지사: ${data.academyAreas.yongin.length}개 | 강동송파하남지사: ${data.academyAreas.gangdong.length}개</p>`;
+            }
+
+            if (html === '') {
+                html = '<p style="color: #999;">데이터가 없습니다. 엑셀 파일 형식을 확인해주세요.</p>';
+            }
+
+            previewContent.innerHTML = html;
+            document.getElementById('previewSection').classList.add('active');
+        }
+
+        function showResult(type, title, message) {
+            const resultSection = document.getElementById('resultSection');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultMessage = document.getElementById('resultMessage');
+            const downloadBtn = document.getElementById('downloadBtn');
+
+            resultSection.className = 'result-section ' + (type === 'error' ? 'error' : 'active');
+            resultTitle.textContent = title;
+            resultMessage.textContent = message;
+            downloadBtn.style.display = type === 'success' ? 'inline-block' : 'none';
+        }
+
+        function downloadDataJs() {
+            if (!convertedData) return;
+
+            const jsContent = `// 가맹점 데이터
+// 엑셀 파일에서 자동 생성됨
+
+const franchiseData = {
+    yongin: ${JSON.stringify(convertedData.franchises.yongin, null, 4)},
+    gangdong: ${JSON.stringify(convertedData.franchises.gangdong, null, 4)}
+};
+
+// 초등학교 데이터는 네이버 지도에서 자동으로 검색하여 표시됩니다
+// 별도의 데이터 입력이 필요 없습니다
+const schoolData = {
+    yongin: [],
+    gangdong: []
+};
+
+// 학원상권 데이터 (주요 학원 밀집 지역)
+const academyAreaData = {
+    yongin: ${JSON.stringify(convertedData.academyAreas.yongin, null, 4)},
+    gangdong: ${JSON.stringify(convertedData.academyAreas.gangdong, null, 4)}
+};
+`;
+
+            const blob = new Blob([jsContent], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'data.js';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
+

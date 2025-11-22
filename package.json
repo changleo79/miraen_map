@@ -1,0 +1,12 @@
+{
+  "name": "miraen-map",
+  "version": "1.0.0",
+  "description": "미래엔수학 가맹점 지도",
+  "scripts": {
+    "start": "python -m http.server 8000"
+  },
+  "keywords": ["map", "naver", "franchise"],
+  "author": "",
+  "license": "MIT"
+}
+

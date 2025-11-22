@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>미래엔수학 가맹점 지도</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=dw6a2qpki3"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>미래엔수학 가맹점 지도</h1>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div class="region-selector">
+                    <button class="region-btn active" data-region="yongin">용인지사</button>
+                    <button class="region-btn" data-region="gangdong">강동송파하남지사</button>
+                </div>
+                <a href="excel-upload.html" style="color: white; text-decoration: none; padding: 8px 20px; border: 2px solid white; border-radius: 20px; font-size: 14px; transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='transparent'">📊 엑셀 데이터 업로드</a>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <aside class="sidebar">
+                <div class="control-panel">
+                    <h2>필터</h2>
+                    
+                    <div class="filter-section">
+                        <h3>표시 옵션</h3>
+                        <label>
+                            <input type="checkbox" id="showFranchises" checked>
+                            가맹점 표시
+                        </label>
+                        <label>
+                            <input type="checkbox" id="showSchools" checked>
+                            초등학교 표시
+                        </label>
+                        <label>
+                            <input type="checkbox" id="showAcademyAreas" checked>
+                            학원상권 표시
+                        </label>
+                    </div>
+
+                    <div class="filter-section">
+                        <h3>회원수 필터</h3>
+                        <label>
+                            최소 회원수:
+                            <input type="number" id="minMembers" min="0" value="0">
+                        </label>
+                    </div>
+
+                    <div class="filter-section">
+                        <h3>가맹점 정보</h3>
+                        <div id="franchiseList" class="franchise-list"></div>
+                    </div>
+                </div>
+            </aside>
+
+            <main class="map-container">
+                <div id="map" style="width:100%;height:100%;"></div>
+                <div class="map-legend">
+                    <div class="legend-item">
+                        <span class="legend-marker franchise"></span>
+                        <span>가맹점</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker school"></span>
+                        <span>초등학교</span>
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-marker academy-area"></span>
+                        <span>학원상권</span>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <div id="infoWindow" class="info-window hidden">
+            <div class="info-header">
+                <h3 id="infoTitle"></h3>
+                <button class="close-btn" onclick="closeInfoWindow()">×</button>
+            </div>
+            <div id="infoContent"></div>
+        </div>
+    </div>
+
+    <script src="data.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
+
