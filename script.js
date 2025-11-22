@@ -42,28 +42,36 @@ function initMap() {
         // 지도 타일 로드 완료 이벤트
         naver.maps.Event.addListener(map, 'idle', () => {
             console.log('지도 타일 로드 완료');
-            if (!authFailed) {
-                // 지도가 정상적으로 로드되었는지 확인
-                const mapDiv = document.getElementById('map');
-                if (mapDiv) {
+            // 지도가 실제로 로드되었는지 확인 (타일이 보이는지)
+            const mapDiv = document.getElementById('map');
+            if (mapDiv) {
+                // 지도 컨테이너 내부에 네이버 지도 타일이 있는지 확인
+                const mapCanvas = mapDiv.querySelector('canvas');
+                const mapTiles = mapDiv.querySelectorAll('img[src*="naver"]');
+                
+                if (mapCanvas || mapTiles.length > 0) {
+                    console.log('✅ 지도 타일 정상 로드 확인');
+                    // 지도가 정상적으로 로드되었으므로 인증은 성공한 것
+                    authFailed = false;
+                } else {
+                    // 지도 타일이 없으면 인증 실패 가능성
                     const mapContent = mapDiv.innerHTML || '';
-                    // 인증 실패 메시지가 있는지 확인
                     if (mapContent.includes('API 인증이 실패했습니다') || 
                         mapContent.includes('Authentication Failed') ||
                         mapContent.includes('인증이 실패')) {
                         console.error('지도 타일 로드 후 인증 실패 감지');
-                        authFailed = true;
-                        const currentUrl = window.location.origin;
-                        showMapError('네이버 지도 API 인증이 실패했습니다.<br><br>' +
-                            '<strong>현재 도메인:</strong> <code>' + currentUrl + '</code><br><br>' +
-                            '<strong>확인 사항:</strong><br>' +
-                            '1. 네이버 클라우드 플랫폼 → VPC → Maps → Application<br>' +
-                            '2. Web 서비스 URL에 <code>' + currentUrl + '</code> 정확히 등록 (마지막 슬래시 없음)<br>' +
-                            '3. "✓ 저장" 버튼 클릭 완료<br>' +
-                            '4. 저장 후 10-15분 대기 후 새로고침<br>' +
-                            '5. 브라우저를 완전히 종료한 후 다시 시도');
-                    } else {
-                        console.log('✅ 지도 정상 로드 확인');
+                        if (!authFailed) {
+                            authFailed = true;
+                            const currentUrl = window.location.origin;
+                            showMapError('네이버 지도 API 인증이 실패했습니다.<br><br>' +
+                                '<strong>현재 도메인:</strong> <code>' + currentUrl + '</code><br><br>' +
+                                '<strong>확인 사항:</strong><br>' +
+                                '1. 네이버 클라우드 플랫폼 → VPC → Maps → Application<br>' +
+                                '2. Web 서비스 URL에 <code>' + currentUrl + '</code> 정확히 등록 (마지막 슬래시 없음)<br>' +
+                                '3. "✓ 저장" 버튼 클릭 완료<br>' +
+                                '4. 저장 후 10-15분 대기 후 새로고침<br>' +
+                                '5. 브라우저를 완전히 종료한 후 다시 시도');
+                        }
                     }
                 }
             }
@@ -92,27 +100,38 @@ function initMap() {
             }
         });
         
-        // 지도 생성 후 일정 시간 후 인증 실패 확인
+        // 지도 생성 후 일정 시간 후 실제 지도 로드 상태 확인
         setTimeout(() => {
-            if (!mapLoaded && !authFailed) {
+            if (!authFailed) {
                 const mapDiv = document.getElementById('map');
                 if (mapDiv) {
-                    const mapContent = mapDiv.innerHTML || '';
-                    // 네이버 지도 API 인증 실패 메시지 확인
-                    if (mapContent.includes('API 인증이 실패했습니다') || 
-                        mapContent.includes('Authentication Failed') ||
-                        mapContent.includes('인증이 실패')) {
-                        console.error('지도 생성 후 인증 실패 감지 (타임아웃)');
-                        authFailed = true;
-                        showMapError('네이버 지도 API 인증이 실패했습니다.<br><br>' +
-                            '<strong>가능한 원인:</strong><br>' +
-                            '1. Web 서비스 URL이 등록되지 않았거나 형식이 잘못됨<br>' +
-                            '2. Application 저장 후 반영 시간이 필요함 (10-15분)<br>' +
-                            '3. Web 서비스 URL에 마지막 슬래시(/)가 있으면 안 됨<br><br>' +
-                            '<strong>해결 방법:</strong><br>' +
-                            '1. 네이버 클라우드 플랫폼에서 Application 확인<br>' +
-                            '2. Web 서비스 URL: <code>' + window.location.origin + '</code> (현재 도메인)<br>' +
-                            '3. 저장 후 10분 이상 기다린 후 새로고침');
+                    // 실제 지도 타일이 로드되었는지 확인
+                    const mapCanvas = mapDiv.querySelector('canvas');
+                    const mapTiles = mapDiv.querySelectorAll('img[src*="naver"]');
+                    
+                    // 지도 타일이 없고 인증 실패 메시지가 있으면 에러 표시
+                    if (!mapCanvas && mapTiles.length === 0) {
+                        const mapContent = mapDiv.innerHTML || '';
+                        if (mapContent.includes('API 인증이 실패했습니다') || 
+                            mapContent.includes('Authentication Failed') ||
+                            mapContent.includes('인증이 실패')) {
+                            console.error('지도 생성 후 인증 실패 감지 (타임아웃)');
+                            authFailed = true;
+                            showMapError('네이버 지도 API 인증이 실패했습니다.<br><br>' +
+                                '<strong>가능한 원인:</strong><br>' +
+                                '1. Web 서비스 URL이 등록되지 않았거나 형식이 잘못됨<br>' +
+                                '2. Application 저장 후 반영 시간이 필요함 (10-15분)<br>' +
+                                '3. Web 서비스 URL에 마지막 슬래시(/)가 있으면 안 됨<br><br>' +
+                                '<strong>해결 방법:</strong><br>' +
+                                '1. 네이버 클라우드 플랫폼에서 Application 확인<br>' +
+                                '2. Web 서비스 URL: <code>' + window.location.origin + '</code> (현재 도메인)<br>' +
+                                '3. 저장 후 10분 이상 기다린 후 새로고침');
+                        } else if (mapLoaded) {
+                            // 지도가 초기화되었지만 타일이 없으면 경고만
+                            console.warn('지도가 초기화되었지만 타일 로드가 지연되고 있습니다.');
+                        }
+                    } else {
+                        console.log('✅ 지도 타일 정상 로드 확인 (타임아웃 체크)');
                     }
                 }
             }
