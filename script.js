@@ -132,8 +132,9 @@ function showMapError(message) {
             '<ol style="line-height: 2; color: #666;">' +
             '<li>네이버 클라우드 플랫폼(<a href="https://www.ncloud.com" target="_blank" style="color: #667eea;">ncloud.com</a>)에 로그인</li>' +
             '<li>VPC 플랫폼 선택 → Maps → Application 메뉴로 이동</li>' +
-            '<li>등록한 Application (miraen-math-map) 클릭하여 수정</li>' +
-            '<li><strong style="color: #ff6b6b;">"Web 서비스 URL"</strong>에 <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">' + window.location.origin + '</code> (현재 도메인) 정확히 등록되어 있는지 확인</li>' +
+            '<li>등록한 Application 클릭하여 수정</li>' +
+            '<li><strong style="color: #ff6b6b;">"Web 서비스 URL"</strong>에 <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">' + window.location.origin + '</code> (현재 도메인) 정확히 등록되어 있는지 확인<br>' +
+            '&nbsp;&nbsp;&nbsp;&nbsp;⚠️ 마지막 슬래시(/) 없이 등록해야 합니다!</li>' +
             '<li><strong style="color: #ff6b6b;">"✓ 저장"</strong> 버튼 클릭하여 저장</li>' +
             '<li>저장 후 5분 정도 기다린 후 이 페이지를 새로고침 (F5)</li>' +
             '<li>여전히 안 되면 신규 Maps API로 전환 고려</li>' +
@@ -627,65 +628,84 @@ function setupEventListeners() {
 // 페이지 로드 시 초기화
 window.addEventListener('DOMContentLoaded', () => {
     console.log('페이지 로드 시작');
+    console.log('현재 URL:', window.location.href);
+    console.log('현재 도메인:', window.location.origin);
+    
+    let apiLoaded = false;
+    let checkCount = 0;
+    const maxChecks = 10;
     
     // 네이버 지도 API 로드 확인 함수
     function checkNaverMapAPI() {
-        console.log('네이버 지도 API 확인 중...');
+        checkCount++;
+        console.log(`[${checkCount}/${maxChecks}] 네이버 지도 API 확인 중...`);
         console.log('naver 객체:', typeof naver !== 'undefined' ? '존재' : '없음');
         console.log('naver.maps:', typeof naver !== 'undefined' && naver.maps ? '존재' : '없음');
         
         if (typeof naver !== 'undefined' && naver.maps) {
             console.log('✅ 네이버 지도 API 로드 성공');
+            apiLoaded = true;
             try {
                 initMap();
             } catch (error) {
                 console.error('지도 초기화 오류:', error);
                 showMapError('지도 초기화 중 오류가 발생했습니다: ' + error.message);
             }
+        } else if (checkCount >= maxChecks) {
+            console.error('❌ 네이버 지도 API 로드 실패 (최대 재시도 횟수 도달)');
+            const currentUrl = window.location.origin;
+            showMapError('네이버 지도 API가 로드되지 않았습니다.<br><br>' +
+                '<strong>현재 도메인:</strong> <code>' + currentUrl + '</code><br><br>' +
+                '<strong>확인 사항:</strong><br>' +
+                '1. 네이버 클라우드 플랫폼 → VPC → Maps → Application<br>' +
+                '2. Web 서비스 URL에 <code>' + currentUrl + '</code> 정확히 등록 (마지막 슬래시 없음)<br>' +
+                '3. "✓ 저장" 버튼 클릭 완료<br>' +
+                '4. 저장 후 10-15분 대기 후 새로고침<br>' +
+                '5. 브라우저 개발자 도구(F12) → Network 탭에서 maps.js 로드 상태 확인<br>' +
+                '6. Client ID 확인: <code>dw6a2qpki3</code><br><br>' +
+                '<strong>참고:</strong> Web 서비스 URL은 여러 개 등록 가능합니다. 로컬과 배포 URL 모두 등록하세요.');
         } else {
-            console.error('❌ 네이버 지도 API 로드 실패');
-            showMapError('네이버 지도 API가 로드되지 않았습니다. 다음을 확인해주세요:<br><br>' +
-                '1. Application을 저장했는지 확인<br>' +
-                '2. 저장 후 1-2분 정도 기다린 후 새로고침<br>' +
-                '3. 브라우저 캐시 삭제 후 다시 시도<br>' +
-                '4. Client ID가 올바른지 확인 (현재: dw6a2qpki3)');
+            // 계속 재시도
+            setTimeout(checkNaverMapAPI, 1000);
         }
     }
     
     // 네이버 지도 API 스크립트 로드 확인
     const script = document.querySelector('script[src*="maps.js"]');
     if (script) {
+        console.log('네이버 지도 API 스크립트 태그 발견:', script.src);
+        
         script.onload = function() {
-            console.log('네이버 지도 API 스크립트 로드 완료');
+            console.log('✅ 네이버 지도 API 스크립트 로드 완료');
             setTimeout(checkNaverMapAPI, 500);
         };
+        
         script.onerror = function() {
-            console.error('네이버 지도 API 스크립트 로드 실패');
-            showMapError('네이버 지도 API 스크립트를 로드할 수 없습니다. 네트워크 연결을 확인해주세요.');
+            console.error('❌ 네이버 지도 API 스크립트 로드 실패');
+            const currentUrl = window.location.origin;
+            showMapError('네이버 지도 API 스크립트를 로드할 수 없습니다.<br><br>' +
+                '<strong>가능한 원인:</strong><br>' +
+                '1. Web 서비스 URL이 등록되지 않음<br>' +
+                '2. Client ID가 잘못됨<br>' +
+                '3. 네트워크 연결 문제<br><br>' +
+                '<strong>해결 방법:</strong><br>' +
+                '1. 네이버 클라우드 플랫폼에서 Application 확인<br>' +
+                '2. Web 서비스 URL: <code>' + currentUrl + '</code> 등록 확인<br>' +
+                '3. 브라우저 개발자 도구(F12) → Console 탭에서 에러 메시지 확인<br>' +
+                '4. Network 탭에서 maps.js 요청 상태 확인');
         };
+        
+        // 스크립트가 이미 로드되었을 수도 있음
+        if (script.complete || script.readyState === 'complete') {
+            console.log('스크립트가 이미 로드된 것으로 보임');
+            setTimeout(checkNaverMapAPI, 500);
+        }
+    } else {
+        console.error('네이버 지도 API 스크립트 태그를 찾을 수 없습니다');
+        showMapError('네이버 지도 API 스크립트 태그를 찾을 수 없습니다. index.html 파일을 확인해주세요.');
     }
     
     // 일정 시간 후에도 로드되지 않으면 확인
     setTimeout(checkNaverMapAPI, 1000);
-    setTimeout(checkNaverMapAPI, 3000);
-    
-    // 네이버 지도 API 로드 후 에러 체크
-    setTimeout(() => {
-        const mapDiv = document.getElementById('map');
-        if (mapDiv) {
-            const mapContent = mapDiv.innerHTML || '';
-            if (mapContent.includes('API 인증이 실패했습니다') || 
-                mapContent.includes('Authentication Failed') ||
-                mapContent.includes('인증이 실패')) {
-                console.error('네이버 지도 API 인증 실패 감지');
-                showMapError('네이버 지도 API 인증이 실패했습니다.<br><br>' +
-                    '다음을 확인해주세요:<br>' +
-                    '1. Application을 저장했는지 확인<br>' +
-                    '2. Web 서비스 URL이 정확히 등록되었는지 확인<br>' +
-                    '3. 저장 후 1-2분 정도 기다린 후 새로고침<br>' +
-                    '4. 브라우저를 완전히 종료한 후 다시 시도');
-            }
-        }
-    }, 5000);
 });
 
