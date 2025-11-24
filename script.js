@@ -107,7 +107,7 @@ function initMap() {
                 if (mapDiv) {
                     // 실제 지도 타일이 로드되었는지 확인
                     const mapCanvas = mapDiv.querySelector('canvas');
-                    const mapTiles = mapDiv.querySelectorAll('img[src*="naver"]');
+                    const mapTiles = mapDiv.querySelectorAll('img[src*="naver"], img[src*="map"]');
                     
                     // 지도 타일이 없고 인증 실패 메시지가 있으면 에러 표시
                     if (!mapCanvas && mapTiles.length === 0) {
@@ -116,16 +116,22 @@ function initMap() {
                             mapContent.includes('Authentication Failed') ||
                             mapContent.includes('인증이 실패')) {
                             console.error('지도 생성 후 인증 실패 감지 (타임아웃)');
-                            authFailed = true;
-                            showMapError('네이버 지도 API 인증이 실패했습니다.<br><br>' +
-                                '<strong>가능한 원인:</strong><br>' +
-                                '1. Web 서비스 URL이 등록되지 않았거나 형식이 잘못됨<br>' +
-                                '2. Application 저장 후 반영 시간이 필요함 (10-15분)<br>' +
-                                '3. Web 서비스 URL에 마지막 슬래시(/)가 있으면 안 됨<br><br>' +
-                                '<strong>해결 방법:</strong><br>' +
-                                '1. 네이버 클라우드 플랫폼에서 Application 확인<br>' +
-                                '2. Web 서비스 URL: <code>' + window.location.origin + '</code> (현재 도메인)<br>' +
-                                '3. 저장 후 10분 이상 기다린 후 새로고침');
+                            // 인증 실패 메시지가 있어도 지도 객체가 있으면 계속 시도
+                            if (map && mapLoaded) {
+                                console.warn('인증 실패 메시지가 있지만 지도 객체는 존재합니다. 계속 시도합니다.');
+                                // 에러 표시하지 않고 계속 진행
+                            } else {
+                                authFailed = true;
+                                showMapError('네이버 지도 API 인증이 실패했습니다.<br><br>' +
+                                    '<strong>가능한 원인:</strong><br>' +
+                                    '1. Web 서비스 URL이 등록되지 않았거나 형식이 잘못됨<br>' +
+                                    '2. Application 저장 후 반영 시간이 필요함 (10-15분)<br>' +
+                                    '3. Web 서비스 URL에 마지막 슬래시(/)가 있으면 안 됨<br><br>' +
+                                    '<strong>해결 방법:</strong><br>' +
+                                    '1. 네이버 클라우드 플랫폼에서 Application 확인<br>' +
+                                    '2. Web 서비스 URL: <code>' + window.location.origin + '</code> (현재 도메인)<br>' +
+                                    '3. 저장 후 10분 이상 기다린 후 새로고침');
+                            }
                         } else if (mapLoaded) {
                             // 지도가 초기화되었지만 타일이 없으면 경고만
                             console.warn('지도가 초기화되었지만 타일 로드가 지연되고 있습니다.');
@@ -218,23 +224,36 @@ function displayFranchises(minMembers = 0) {
             createFranchiseMarker(franchise);
         } else {
             // 좌표가 없으면 Geocoding 시도
-            // 인증이 완료된 후에만 Geocoding 시도
-            if (naver && naver.maps && naver.maps.Service && naver.maps.Service.geocode) {
-                // Geocoding 시도 (인증 실패 시 콜백이 호출되지 않음)
-                geocodeAddress(franchise.address, (lat, lng) => {
-                    if (lat && lng) {
-                        franchise.lat = lat;
-                        franchise.lng = lng;
-                        createFranchiseMarker(franchise);
+            // Geocoding Service 초기화 대기
+            const tryGeocode = () => {
+                if (naver && naver.maps) {
+                    // Service 객체가 아직 없으면 잠시 후 재시도
+                    if (!naver.maps.Service) {
+                        console.log('Geocoding Service 초기화 대기 중...', franchise.name);
+                        setTimeout(tryGeocode, 1000);
+                        return;
                     }
-                }, () => {
-                    // Geocoding 실패 시 (인증 실패 포함)
-                    console.warn('Geocoding 실패:', franchise.name);
-                });
-            } else {
-                // Geocoding Service가 없으면 인증 실패 가능성
-                console.warn('좌표가 없고 Geocoding Service를 사용할 수 없습니다:', franchise.name);
-            }
+                    
+                    if (naver.maps.Service.geocode) {
+                        geocodeAddress(franchise.address, (lat, lng) => {
+                            if (lat && lng) {
+                                franchise.lat = lat;
+                                franchise.lng = lng;
+                                createFranchiseMarker(franchise);
+                            }
+                        }, () => {
+                            console.warn('Geocoding 실패:', franchise.name);
+                        });
+                    } else {
+                        console.warn('Geocoding Service를 사용할 수 없습니다:', franchise.name);
+                    }
+                } else {
+                    console.warn('네이버 지도 API가 로드되지 않았습니다:', franchise.name);
+                }
+            };
+            
+            // 즉시 시도
+            tryGeocode();
         }
     });
 }
